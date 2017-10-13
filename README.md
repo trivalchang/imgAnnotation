@@ -25,3 +25,6 @@ This tool is only tested on MAC OSX equipped with python 2.7 and OpenCV 3.3
 
 ## The next step
 After some investigation, I can't find a good way to have a high accuracy to do computer auto test. So I will try to include tensorflow. I will develop imgCrop to do annotation for tensorflow object detection.
+
+## Also
+[Here](https://youtu.be/Yi2agS3QLzk) is what is done. the most difficult part is to recognize the sub item of the menu. All sub items are so similar...
