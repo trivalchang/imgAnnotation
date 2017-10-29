@@ -261,8 +261,8 @@ def main():
 		if (key>=ord('0') and key<=ord('9')) and bAnnotation == True and bRoiGot == True:
 			print(classes[key-ord('0')])
 			classIdx = key-ord('0')
-			textX = min(points[0][0], points[1][0])
-			textY = min(points[0][1], points[1][1]) - 20
+			textX = min(points[0][0], points[1][0]) + 5
+			textY = min(points[0][1], points[1][1]) + 30
 			frame = clone.copy()
 			cv2.putText(frame, classes[classIdx], (textX,textY), font, 0.8, class_color[classIdx], 2, cv2.LINE_AA)
 			cv2.rectangle(frame, lastPoints[0], lastPoints[1], class_color[classIdx], 2)
