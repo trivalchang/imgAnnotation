@@ -1,1 +1,1 @@
-python imgCrop.py -a -d ../pikachu -c classes.txt
+python imgAnnotation.py -a -d ../pikachu -c classes.txt

@@ -1,1 +1,1 @@
-python -m pdb imgCrop.py -a -d ../pikachu -c classes.txt
+python -m pdb imgAnnotation.py -a -d ../pikachu -c classes.txt
