@@ -30,13 +30,8 @@ def click_and_crop(event, x, y, flags, param):
 			refPt[1] = (x, y)
 			cropping = True
 			cropDOne = False
-	# check to see if the left mouse button was released
-	elif event == cv2.EVENT_LBUTTONUP:
-		# record the ending (x, y) coordinates and indicate that
-		# the cropping operation is finished
-		refPt[1] = (x, y)
-		if (refPt[0] != refPt[1]):
+		else:
 			cropDOne = True
-		#print('left button released')
+		print('left button pressed')
 	elif event == cv2.EVENT_MOUSEMOVE:
 		refPt[1] = (x, y)

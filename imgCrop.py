@@ -9,10 +9,25 @@ import cv2
 import os 
 import sys
 
+from xml.etree import ElementTree
+from xml.etree.ElementTree import Element, SubElement
+from lxml import etree
+import codecs
+
 from color_kmeans import findDominantColor
 from click_and_crop import *
 
 DOMINATE_CLUSTER_NO	= 2
+font = cv2.FONT_HERSHEY_SIMPLEX
+class_color = [
+	(255, 0, 0),
+	(0, 255, 0),
+	(0, 0, 255),
+	(255, 255, 0),
+	(255, 0, 255),
+	(0, 255, 255),
+	(128, 255, 0)
+	]
 
 class VideoReader():
 	imageList = []
@@ -20,9 +35,14 @@ class VideoReader():
 	index = 0
 	cap = None
 	def __init__(self, images, is_video):
-		self.imageList = images
+		self.imageList = []
 		self.bVideo = is_video
 		self.index = 0
+		if (is_video == False):
+			for f in os.listdir(images):
+				#if f.endswith(".png") or f.endswith(".jpg"):
+				if f.endswith(".jpg"):
+					self.imageList.append(images+'/'+f)
 
 	def open(self):
 		if (self.bVideo == True): 
@@ -48,6 +68,72 @@ class VideoReader():
 	def close(self):
 		self.cap.release()
 
+class pacasl_voc_writer:
+
+	objList = []
+	def __init__(self, fName, folder, imgSize, path=None):
+		self.fName = fName
+		self.imgSize = imgSize
+		self.folder = folder
+		self.path = path
+
+	def new_box(self, objName, box):
+		self.objList.append((objName, box))
+
+	def prettify(self, elem):
+		rough_string = ElementTree.tostring(elem, 'utf8')
+		root = etree.fromstring(rough_string)
+		return etree.tostring(root, pretty_print=True)
+
+	def save(self):
+		vocFile = codecs.open(self.fName+'.xml', 'w')
+		annotation = Element('annotation')
+		annotation.set('verified', 'yes')
+		folder = SubElement(annotation, 'folder')
+		folder.text = self.folder
+		filename = SubElement(annotation, 'filename')
+		filename.text = self.fName
+		if (self.path != None):
+			path = SubElement(annotation, 'path')
+			path.text = self.path
+
+		source = SubElement(annotation, 'source')
+		database = SubElement(source, 'database')
+		database.text = 'Unkown'
+
+		size = SubElement(annotation, 'size')
+		width = SubElement(size, 'width')
+		width.text = str(self.imgSize[0])
+		height = SubElement(size, 'height')
+		height.text = str(self.imgSize[1])
+		depth = SubElement(size, 'depth')
+		depth.text = str(self.imgSize[2])
+
+		for (objName, objBox) in self.objList:
+			print(objName, objBox)
+			obj = SubElement(annotation, 'object')
+			name = SubElement(obj, 'name')
+			name.text = objName
+			pose = SubElement(obj, 'pose')
+			pose.text = 'Unspecified'
+			truncated = SubElement(obj, 'truncated')
+			truncated.text = '0'
+			difficult = SubElement(obj, 'difficult')
+			difficult.text = '0'
+			bndbox = SubElement(obj, 'bndbox')
+			xmin = SubElement(bndbox, 'xmin')
+			xmin.text = str(objBox[0])
+			ymin = SubElement(bndbox, 'ymin')
+			ymin.text = str(objBox[1])
+			xmax = SubElement(bndbox, 'xmax')
+			xmax.text = str(objBox[2])
+			ymax = SubElement(bndbox, 'ymax')
+			ymax.text = str(objBox[3])
+
+		prettifyResult = self.prettify(annotation)
+		vocFile.write(prettifyResult.decode('utf8'))
+		vocFile.close()
+
 def main():
 
 	global DOMINATE_CLUSTER_NO
@@ -56,6 +142,8 @@ def main():
 	ap.add_argument("-v", "--video", required=False, help="Path to video file, 'webcam' for live video from your computer camera")
 	ap.add_argument("-d", "--directory", required=False, help="Path to the picture photo")
 	ap.add_argument("-f", "--filename", required = False, default='hikeen.ini', help="file name for config output")
+	ap.add_argument("-a", "--annotation", action='store_true', help="create Annotations are saved as XML files in PASCAL VOC format")
+	ap.add_argument("-c", "--classes", required=False,  help="text file contains classes")
 	args = vars(ap.parse_args())
 
 	if (len(args) == 2):
@@ -68,7 +156,19 @@ def main():
 
 	if (args["video"] != None) and (args["directory"] != None):
 		ap.print_help()
-		sys.exit()	
+		sys.exit()
+
+
+
+	classes = []
+	if (args['classes'] != None):
+		classes = open(args['classes']).read().split("\n")
+
+	bAnnotation = args["annotation"]
+	if (bAnnotation):
+		if (classes == []):
+			ap.print_help()
+			sys.exit()
 
 	bVideo = False
 	if (args["video"] != None):
@@ -76,6 +176,10 @@ def main():
 		vr = VideoReader([args["video"]], True)
 	else:
 		vr = VideoReader(args["directory"], False)
+
+	#voc_writer = pacasl_voc_writer('pikachu0', 'pikachu', [100, 80, 3])
+	#voc_writer.new_box('pikachu', [100, 101, 102, 103])
+	#voc_writer.save()
 
 	vr.open()
 
@@ -99,17 +203,36 @@ def main():
 			if (ret == False):
 				break
 
-			frame = cv2.resize(frame, (width, height))
+			(tH, tW, channels) = frame.shape[:3]
+
+			#voc_writer = pacasl_voc_writer(replace('.jpeg', '').replace('.jpg', ''), 'pikachu', [100, 80, 3])
+			#voc_writer.new_box('pikachu', [100, 101, 102, 103])
+			#voc_writer.save()
+
+			voc_writer = pacasl_voc_writer(imageName.replace('.jpeg', '').replace('.jpg', ''), 'pikachu', [tW, tH, channels])
+
+			newH = height
+			newW = width
+			if (tH > height):
+				scale = float(height)/float(tH)
+				newH = height;
+				newW = int(scale * width)
+			if (tW > width):
+				scale = float(width)/float(tW)
+				newW = width;
+				newH= int(scale * height)
+			scaleH = float(newH)/float(tH)
+			scaleW = float(newW)/float(tW)
+			frame = cv2.resize(frame, (newW, newH))
+			(tH, tW) = frame.shape[:2]
 			cv2.imshow('image', frame)
+			cv2.waitKey(1)
 			clone = frame.copy()
 			framecnt = framecnt + 1
+			if (bVideo == False):
+				bPause = True
 
-		if (bVideo == True):
-			key = cv2.waitKey(1) & 0xFF
-		else:
-			key = ord('c')
-			bRoiGot = True
-			roi = frame
+		key = cv2.waitKey(1) & 0xFF
 
 		if key == ord('d') and bRoiGot == True:
 			bRoiGot = False
@@ -130,10 +253,34 @@ def main():
 			else:
 				itemList.append(('template'+str(captureCnt)+'.png', colorList, list(points)))
 			captureCnt = captureCnt + 1
-		if key == ord('p'):
+		if key == ord('p') or key == ord('n'):
 			bPause = True if (bPause == False) else False
 		if key == ord('q'):
 			break
+
+		if (key>=ord('0') and key<=ord('9')) and bAnnotation == True and bRoiGot == True:
+			print(classes[key-ord('0')])
+			classIdx = key-ord('0')
+			textX = min(points[0][0], points[1][0])
+			textY = min(points[0][1], points[1][1]) - 20
+			frame = clone.copy()
+			cv2.putText(frame, classes[classIdx], (textX,textY), font, 0.8, class_color[classIdx], 2, cv2.LINE_AA)
+			cv2.rectangle(frame, lastPoints[0], lastPoints[1], class_color[classIdx], 2)
+			x = [lastPoints[0][0], lastPoints[1][0]]
+			x[:] = [int(float(p)/scaleW) for p in x]
+			y = [lastPoints[0][1], lastPoints[1][1]]
+			y[:] = [int(float(p)/scaleH) for p in y]
+			voc_writer.new_box(classes[classIdx], [x[0], x[1], y[0], y[1]])
+			cv2.imshow("image", frame)
+			cv2.waitKey(1)
+			clone = frame
+			bRoiGot = False
+
+		if key == ord('s') and bAnnotation == True:
+			voc_writer.save()
+
+		#if bAnnotation == True and (int(:
+
 
 		if is_cropping() == True:
 			bPause = True
@@ -141,38 +288,50 @@ def main():
 			if (bRoiGot == False):
 				if (lastPoints != points):
 					frame = clone.copy()
-					cv2.rectangle(frame, points[0], points[1], (0, 255, 0), 2)
+					#cv2.rectangle(frame, points[0], points[1], (0, 255, 0), 2)
+					print('draw Rect')
+					cv2.rectangle(frame, 
+								(min(points[0][0], points[1][0]), min(points[0][1], points[1][1])), 
+								(max(points[0][0], points[1][0]), max(points[0][1], points[1][1])), 
+								(0, 255, 0), 2)
 					cv2.imshow("image", frame)
 					cv2.waitKey(1)
 					lastPoints = []
 					lastPoints.append(points[0])
 					lastPoints.append(points[1])
-				continue
+					continue
 			else:
+				lastPoints = []
+				lastPoints.append((min(points[0][0], points[1][0]), min(points[0][1], points[1][1])))
+				lastPoints.append((max(points[0][0], points[1][0]), max(points[0][1], points[1][1])))
 				roi = clone[points[0][1]:points[1][1], points[0][0]:points[1][0]]	
-				cv2.imshow('template'+str(captureCnt), roi)		
-				cv2.rectangle(frame, points[0], points[1], (0, 255, 0), 2)
+				#cv2.imshow('template'+str(captureCnt), roi)	
+				frame = clone.copy()
+				cv2.rectangle(frame, lastPoints[0], lastPoints[1], (0, 255, 0), 2)
 				cv2.imshow("image", frame)
 				cv2.waitKey(1)
 
 
-	if itemList != []:
-		config = ConfigObj(args["filename"])
-		config['item number'] = len(itemList)
-		config['dominant cluster'] = DOMINATE_CLUSTER_NO
-		itemIndex = 0
-		for (itemPicName, dominant, loc) in itemList:
-			itemName = 'ITEM'+str(itemIndex)
-			config[itemName] = {}
-			config[itemName]['File name'] = itemPicName
-			config[itemName]['dominant'] = dominant
-			if (loc==[]):
-				config[itemName]['location'] = []
-			else:
-				config[itemName]['location'] = [loc[0][0], loc[0][1], loc[1][0], loc[1][1]]
-			itemIndex = itemIndex + 1
-		with open(args["filename"], 'w') as configfile:
-			config.write()
+	if bAnnotation == False:
+		if itemList != []:
+			config = ConfigObj(args["filename"])
+			config['item number'] = len(itemList)
+			config['dominant cluster'] = DOMINATE_CLUSTER_NO
+			itemIndex = 0
+			for (itemPicName, dominant, loc) in itemList:
+				itemName = 'ITEM'+str(itemIndex)
+				config[itemName] = {}
+				config[itemName]['File name'] = itemPicName
+				config[itemName]['dominant'] = dominant
+				if (loc==[]):
+					config[itemName]['location'] = []
+				else:
+					config[itemName]['location'] = [loc[0][0], loc[0][1], loc[1][0], loc[1][1]]
+				itemIndex = itemIndex + 1
+			with open(args["filename"], 'w') as configfile:
+				config.write()
+	else:
+		print('annotation is true')
 
 
 	print('program finished')
