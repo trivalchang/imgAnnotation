@@ -70,12 +70,12 @@ class VideoReader():
 
 class pacasl_voc_writer:
 
-	objList = []
 	def __init__(self, fName, folder, imgSize, path=None):
 		self.fName = fName
 		self.imgSize = imgSize
 		self.folder = folder
 		self.path = path
+		self.objList = []
 
 	def new_box(self, objName, box):
 		self.objList.append((objName, box))
@@ -184,7 +184,7 @@ def main():
 	vr.open()
 
 	cv2.namedWindow("image")
-	cv2.setMouseCallback("image", click_and_crop)
+	
 
 	width = 1280
 	height = 720
@@ -205,11 +205,9 @@ def main():
 
 			(tH, tW, channels) = frame.shape[:3]
 
-			#voc_writer = pacasl_voc_writer(replace('.jpeg', '').replace('.jpg', ''), 'pikachu', [100, 80, 3])
-			#voc_writer.new_box('pikachu', [100, 101, 102, 103])
-			#voc_writer.save()
-
 			voc_writer = pacasl_voc_writer(imageName.replace('.jpeg', '').replace('.jpg', ''), 'pikachu', [tW, tH, channels])
+
+			title = imageName
 
 			newH = height
 			newW = width
@@ -225,8 +223,10 @@ def main():
 			scaleW = float(newW)/float(tW)
 			frame = cv2.resize(frame, (newW, newH))
 			(tH, tW) = frame.shape[:2]
-			cv2.imshow('image', frame)
+			cv2.imshow(title, frame)
+			cv2.moveWindow(title, 0, 0)
 			cv2.waitKey(1)
+			cv2.setMouseCallback(title, click_and_crop)
 			clone = frame.copy()
 			framecnt = framecnt + 1
 			if (bVideo == False):
@@ -239,7 +239,7 @@ def main():
 			cv2.destroyWindow('template'+str(captureCnt))
 			lastPoints = []
 			frame = clone.copy()
-			cv2.imshow("image", frame)
+			cv2.imshow(title, frame)
 			#cv2.setMouseCallback("image", click_and_crop)
 			cv2.waitKey(1)
 	
@@ -253,8 +253,11 @@ def main():
 			else:
 				itemList.append(('template'+str(captureCnt)+'.png', colorList, list(points)))
 			captureCnt = captureCnt + 1
-		if key == ord('p') or key == ord('n'):
+		if key == ord('p'):
 			bPause = True if (bPause == False) else False
+		if key == ord('n'):
+			bPause = True if (bPause == False) else False
+			cv2.destroyWindow(title)
 		if key == ord('q'):
 			break
 
@@ -270,8 +273,8 @@ def main():
 			x[:] = [int(float(p)/scaleW) for p in x]
 			y = [lastPoints[0][1], lastPoints[1][1]]
 			y[:] = [int(float(p)/scaleH) for p in y]
-			voc_writer.new_box(classes[classIdx], [x[0], x[1], y[0], y[1]])
-			cv2.imshow("image", frame)
+			voc_writer.new_box(classes[classIdx], [x[0], y[0], x[1], y[1]])
+			cv2.imshow(title, frame)
 			cv2.waitKey(1)
 			clone = frame
 			bRoiGot = False
@@ -294,7 +297,7 @@ def main():
 								(min(points[0][0], points[1][0]), min(points[0][1], points[1][1])), 
 								(max(points[0][0], points[1][0]), max(points[0][1], points[1][1])), 
 								(0, 255, 0), 2)
-					cv2.imshow("image", frame)
+					cv2.imshow(title, frame)
 					cv2.waitKey(1)
 					lastPoints = []
 					lastPoints.append(points[0])
@@ -308,7 +311,7 @@ def main():
 				#cv2.imshow('template'+str(captureCnt), roi)	
 				frame = clone.copy()
 				cv2.rectangle(frame, lastPoints[0], lastPoints[1], (0, 255, 0), 2)
-				cv2.imshow("image", frame)
+				cv2.imshow(title, frame)
 				cv2.waitKey(1)
 
 
