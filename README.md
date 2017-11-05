@@ -11,6 +11,7 @@ python imgAnnotation.py -d PATH_TO_PICTURS -c OBJECT_CLASS_STORE
 for ex:
   
   python imgAnnotation.py -a -d ../pikachu -c classes.txt
+  
   imgAnnotation will display the pictures under ../pikchu. Users use the mouse to select the region containting the object.
   
   Hotkey
